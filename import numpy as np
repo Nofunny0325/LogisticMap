@@ -1,0 +1,145 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+
+# -----------------------------
+# 출력 폴더 설정
+# -----------------------------
+output_dir = "logistic_simulation_results"
+os.makedirs(output_dir, exist_ok=True)
+
+# -----------------------------
+# 로지스틱 맵 점화식
+# -----------------------------
+def logistic_map(a, x0, n_iter):
+    """로지스틱 맵: x_{n+1} = a * x_n * (1 - x_n)"""
+    x = np.zeros(n_iter)
+    x[0] = x0
+    for i in range(1, n_iter):
+        x[i] = a * x[i-1] * (1 - x[i-1])
+    return x
+
+# -----------------------------
+# 1️⃣ 주기배 현상 단일 궤도 변화
+# -----------------------------
+a_values = [2.8, 3.3, 3.5, 3.55, 3.6, 3.9]
+x0 = 0.1
+n_iter = 200
+
+for a in a_values:
+    x = logistic_map(a, x0, n_iter)
+    plt.figure(figsize=(8,5))
+    plt.plot(range(n_iter), x, label=f'a={a}')
+    plt.title(f'로지스틱 맵의 주기배 현상 (a={a})')
+    plt.xlabel('반복 횟수 (n)')
+    plt.ylabel('xₙ')
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    fname = os.path.join(output_dir, f"period_doubling_single_orbit_a_{str(a).replace('.','_')}.png")
+    plt.savefig(fname, dpi=300)
+    # plt.show()를 루프 내에서 호출하면 첫 창을 닫기 전까지 다음 반복으로 진행되지 않습니다.
+    # 따라서 여기서는 show()를 호출하지 않고 그림을 닫지도 않습니다.
+    # plt.close()는 제거하여 이후 한 번에 모든 창을 띄웁니다.
+
+# 모든 개별 그림을 한 번에 표시 (블로킹, 사용자는 모든 창을 닫아야 스크립트가 계속됩니다)
+plt.show()
+
+# -----------------------------
+# 2️⃣ 콥웹 다이어그램 (함수 반복 시각화)
+# -----------------------------
+def cobweb_plot(a, x0, n_iter=30):
+    x = np.linspace(0, 1, 500)
+    f = a * x * (1 - x)
+    xn = x0
+
+    plt.figure(figsize=(6,6))
+    plt.plot(x, f, 'k', label=r'$f(x)=a x (1-x)$')
+    plt.plot(x, x, 'gray', linestyle='--')
+
+    for i in range(n_iter):
+        x_next = a * xn * (1 - xn)
+        plt.plot([xn, xn], [xn, x_next], 'r', lw=0.8)
+        plt.plot([xn, x_next], [x_next, x_next], 'r', lw=0.8)
+        xn = x_next
+
+    plt.title(f'콥웹 다이어그램 (a={a})')
+    plt.xlabel('xₙ')
+    plt.ylabel('xₙ₊₁')
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, f"cobweb_a_{a}.png"), dpi=300)
+    plt.show()
+
+# 예시: 주기배 직전과 혼돈 영역 비교
+cobweb_plot(a=3.3, x0=0.1)
+cobweb_plot(a=3.55, x0=0.1)
+cobweb_plot(a=3.9, x0=0.1)
+
+# -----------------------------
+# 3️⃣ 분기 다이어그램 (Bifurcation Diagram)
+# -----------------------------
+a_values = np.linspace(2.5, 4.0, 10000)
+n_iter = 1000
+last = 100
+x = 1e-5 * np.ones_like(a_values)
+
+plt.figure(figsize=(12,7))
+for i in range(n_iter):
+    x = a_values * x * (1 - x)
+    if i >= (n_iter - last):
+        plt.plot(a_values, x, ',k', alpha=0.25)
+plt.title('로지스틱 맵 분기 다이어그램 (Bifurcation Diagram)')
+plt.xlabel('매개변수 a')
+plt.ylabel('xₙ (안정 상태)')
+plt.grid()
+plt.tight_layout()
+plt.savefig(os.path.join(output_dir, "bifurcation_diagram.png"), dpi=400)
+plt.show()
+
+# -----------------------------
+# 4️⃣ 리아푸노프 지수 계산 (Lyapunov Exponent)
+# -----------------------------
+def lyapunov_exponent(a_values, n_iter=1000):
+    x = 1e-5 * np.ones_like(a_values)
+    lyap = np.zeros_like(a_values)
+    for i in range(n_iter):
+        x = a_values * x * (1 - x)
+        lyap += np.log(abs(a_values * (1 - 2*x)))
+    return lyap / n_iter
+
+lyap = lyapunov_exponent(a_values)
+plt.figure(figsize=(12,7))
+plt.plot(a_values, lyap, 'r', lw=0.5)
+plt.axhline(0, color='k', lw=1)
+plt.title('로지스틱 맵의 리아푸노프 지수')
+plt.xlabel('매개변수 a')
+plt.ylabel('Lyapunov Exponent λ')
+plt.grid()
+plt.tight_layout()
+plt.savefig(os.path.join(output_dir, "lyapunov_exponent.png"), dpi=300)
+plt.show()
+
+# -----------------------------
+# 5️⃣ 초기 조건 민감성 실험
+# -----------------------------
+a = 3.95
+x0_1, x0_2 = 0.1, 0.100000001
+n_iter = 200
+x1 = logistic_map(a, x0_1, n_iter)
+x2 = logistic_map(a, x0_2, n_iter)
+
+plt.figure(figsize=(12,7))
+plt.plot(range(n_iter), x1, label=f'x₀={x0_1}')
+plt.plot(range(n_iter), x2, '--', label=f'x₀={x0_2}')
+plt.title(f'초기 조건 민감성 (a={a})')
+plt.xlabel('반복 횟수 (n)')
+plt.ylabel('xₙ')
+plt.legend()
+plt.grid()
+plt.tight_layout()
+plt.savefig(os.path.join(output_dir, "sensitivity_to_initial_conditions.png"), dpi=300)
+plt.show()
+
+print("✅ 모든 시뮬레이션 완료! 결과는 'logistic_simulation_results' 폴더에 저장되었습니다.")
